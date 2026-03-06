@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
@@ -34,7 +37,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,7 +47,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.mismatchhunter.R
 import com.example.mismatchhunter.data.local.EpisodeEntity
 import com.example.mismatchhunter.di.AppContainer
 import com.example.mismatchhunter.ui.viewmodel.AnalyticsViewModel
@@ -143,19 +144,7 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
                     selected = entry?.destination?.route == tab,
                     onClick = { tabsNav.navigate(tab) { popUpTo(tabsNav.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true } },
                     label = { Text(tab.replaceFirstChar { it.uppercase() }) },
-                    icon = {
-                        Icon(
-                            painter = painterResource(
-                                id = when (tab) {
-                                    "sessions" -> R.drawable.ic_sessions
-                                    "analytics" -> R.drawable.ic_analytics
-                                    "playbook" -> R.drawable.ic_playbook
-                                    else -> R.drawable.ic_settings
-                                }
-                            ),
-                            contentDescription = null
-                        )
-                    }
+                    icon = { Icon(imageVector = when (tab) { "sessions" -> Icons.Default.Home; "analytics" -> Icons.Default.Analytics; "playbook" -> Icons.Default.Book; else -> Icons.Default.Settings }, contentDescription = null) }
                 )
             }
         }
@@ -194,7 +183,7 @@ private fun HomeScreen(recent: List<EpisodeEntity>, onCreateSession: () -> Unit,
         if (recent.isEmpty()) Text("Пока нет эпизодов. Создайте сессию.")
         LazyColumn {
             items(recent) { ep ->
-                Card(onClick = { onOpenSession(ep.sessionId) }, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                Card(Modifier.fillMaxWidth().padding(vertical = 6.dp), onClick = { onOpenSession(ep.sessionId) }) {
                     Column(Modifier.padding(12.dp)) {
                         Text("${ep.opponentPosition} • ${ep.switchType}")
                         Text("${ep.result} • ${DateUtils.formatMillis(ep.createdAt)}")
@@ -230,7 +219,7 @@ private fun SessionDetailScreen(vm: SessionDetailViewModel, openAddEpisode: () -
         }
         Button(onClick = openAddEpisode, modifier = Modifier.padding(vertical = 8.dp)) { Text("Добавить эпизод") }
         if (state.episodes.isEmpty()) Text("Нет данных для фильтра")
-        LazyColumn { items(state.episodes) { ep -> Card(onClick = { openEpisode(ep.id) }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Text("${ep.opponentPosition} • ${ep.result}", Modifier.padding(12.dp)) } } }
+        LazyColumn { items(state.episodes) { ep -> Card(Modifier.fillMaxWidth().padding(vertical = 4.dp), onClick = { openEpisode(ep.id) }) { Text("${ep.opponentPosition} • ${ep.result}", Modifier.padding(12.dp)) } } }
     }
 }
 
@@ -287,7 +276,6 @@ private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun SettingsScreen(vm: SettingsViewModel) {
     val settings by vm.settings.collectAsState()
     Column(Modifier.fillMaxSize().padding(16.dp)) {
