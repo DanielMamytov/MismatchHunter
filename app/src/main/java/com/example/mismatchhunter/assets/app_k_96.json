@@ -1,0 +1,701 @@
+{
+  "project": {
+    "name": "Mismatch Hunter",
+    "platform": [
+      "Android"
+    ],
+    "language": "Kotlin",
+    "minimumOSVersion": "8.0",
+    "architecture": "MVVM",
+    "dependencies": [
+      "androidx.core",
+      "androidx.lifecycle",
+      "Room",
+      "Material Components",
+      "MPAndroidChart"
+    ],
+    "version": "1.0"
+  },
+  "designSystem": {
+    "theme": "Dark",
+    "colors": {
+      "background": "#181C24",
+      "surface": "#232A36",
+      "primaryAccent": "#2474FF",
+      "secondaryAccent": "#6CB8FF",
+      "onPrimary": "#FFFFFF",
+      "onSurface": "#E3E7EF",
+      "error": "#FF4B5C",
+      "success": "#22D47B",
+      "warning": "#FFD600",
+      "divider": "#2A3342"
+    },
+    "typography": {
+      "fontFamily": "Roboto",
+      "headline1": {
+        "size": 28,
+        "weight": "700"
+      },
+      "headline2": {
+        "size": 22,
+        "weight": "600"
+      },
+      "body1": {
+        "size": 16,
+        "weight": "400"
+      },
+      "body2": {
+        "size": 14,
+        "weight": "400"
+      },
+      "caption": {
+        "size": 12,
+        "weight": "400"
+      }
+    },
+    "spacing": {
+      "xs": 4,
+      "sm": 8,
+      "md": 16,
+      "lg": 24,
+      "xl": 32
+    },
+    "radius": {
+      "sm": 6,
+      "md": 12,
+      "lg": 20
+    },
+    "elevation": {
+      "card": 3,
+      "modal": 8,
+      "appBar": 4
+    }
+  },
+  "app": {
+    "entryPoint": "MainActivity.kt",
+    "lifecycle": {
+      "initSequence": [
+        "preloader",
+        "onboarding",
+        "home"
+      ],
+      "backgroundBehavior": "saveState",
+      "foregroundBehavior": "refreshData",
+      "terminationPolicy": "persistLocalData"
+    },
+    "preloader": {
+      "screenName": "Preloader",
+      "animationType": "ProgressBar",
+      "initializationLogic": "Initialize local database, check dependencies, load theme and accent colors, verify user session.",
+      "dependencyChecks": [
+        "Room database",
+        "Material Components",
+        "Theme assets"
+      ],
+      "themeLoading": "Apply dark theme and accent colors before main UI load.",
+      "transitionLogic": "If first launch, navigate to Onboarding; else, proceed to Home."
+    },
+    "navigation": {
+      "type": "BottomTabNavigation",
+      "tabs": [
+        {
+          "tabName": "Sessions",
+          "icon": "ic_sessions",
+          "destination": "HomeScreen"
+        },
+        {
+          "tabName": "Analytics",
+          "icon": "ic_analytics",
+          "destination": "AnalyticsScreen"
+        },
+        {
+          "tabName": "Playbook",
+          "icon": "ic_playbook",
+          "destination": "PlaybookScreen"
+        },
+        {
+          "tabName": "Settings",
+          "icon": "ic_settings",
+          "destination": "SettingsScreen"
+        }
+      ]
+    },
+    "features": [
+      {
+        "screenName": "OnboardingScreen1",
+        "view": "OnboardingScreen1View",
+        "viewModel": "OnboardingScreen1ViewModel",
+        "screenType": "Onboarding",
+        "primaryPurpose": "Introduce app purpose and core features",
+        "userActions": [
+          "Next"
+        ],
+        "inputFields": [],
+        "validationReference": [],
+        "dataReadFrom": [],
+        "dataWriteTo": [],
+        "cachingPolicy": "none",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "OnboardingScreen2"
+        ],
+        "loadingState": "static",
+        "emptyState": "none",
+        "errorState": "none",
+        "retryBehavior": "none"
+      },
+      {
+        "screenName": "OnboardingScreen2",
+        "view": "OnboardingScreen2View",
+        "viewModel": "OnboardingScreen2ViewModel",
+        "screenType": "Onboarding",
+        "primaryPurpose": "Guide user through data entry and analytics features",
+        "userActions": [
+          "Start"
+        ],
+        "inputFields": [],
+        "validationReference": [],
+        "dataReadFrom": [],
+        "dataWriteTo": [],
+        "cachingPolicy": "none",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "HomeScreen"
+        ],
+        "loadingState": "static",
+        "emptyState": "none",
+        "errorState": "none",
+        "retryBehavior": "none"
+      },
+      {
+        "screenName": "HomeScreen",
+        "view": "HomeScreenView",
+        "viewModel": "HomeScreenViewModel",
+        "screenType": "Home",
+        "primaryPurpose": "Display session list, quick stats, and navigation",
+        "userActions": [
+          "OpenSession",
+          "CreateSession",
+          "ViewAnalytics"
+        ],
+        "inputFields": [],
+        "validationReference": [],
+        "dataReadFrom": [
+          "sessions",
+          "quickStats"
+        ],
+        "dataWriteTo": [],
+        "cachingPolicy": "memory",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "SessionDetailScreen",
+          "CreateSessionScreen",
+          "AnalyticsScreen"
+        ],
+        "loadingState": "skeleton",
+        "emptyState": "showEmptySessions",
+        "errorState": "showError",
+        "retryBehavior": "reloadSessions"
+      },
+      {
+        "screenName": "CreateSessionScreen",
+        "view": "CreateSessionView",
+        "viewModel": "CreateSessionViewModel",
+        "screenType": "Input",
+        "primaryPurpose": "Create new game or training session",
+        "userActions": [
+          "SaveSession",
+          "Cancel"
+        ],
+        "inputFields": [
+          {
+            "fieldName": "sessionName",
+            "fieldType": "text",
+            "required": true,
+            "validationGroup": "sessionText",
+            "defaultValue": "",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "sessionDate",
+            "fieldType": "date",
+            "required": true,
+            "validationGroup": "sessionDate",
+            "defaultValue": "",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "sessionType",
+            "fieldType": "selection",
+            "required": true,
+            "validationGroup": "sessionSelection",
+            "defaultValue": "Game",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "sessionDescription",
+            "fieldType": "text",
+            "required": false,
+            "validationGroup": "sessionText",
+            "defaultValue": "",
+            "storageLocation": "local"
+          }
+        ],
+        "validationReference": [
+          "sessionText",
+          "sessionDate",
+          "sessionSelection"
+        ],
+        "dataReadFrom": [],
+        "dataWriteTo": [
+          "sessions"
+        ],
+        "cachingPolicy": "none",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "HomeScreen"
+        ],
+        "loadingState": "inline",
+        "emptyState": "none",
+        "errorState": "showError",
+        "retryBehavior": "retrySaveSession"
+      },
+      {
+        "screenName": "SessionDetailScreen",
+        "view": "SessionDetailView",
+        "viewModel": "SessionDetailViewModel",
+        "screenType": "Detail",
+        "primaryPurpose": "Show session details and episode list",
+        "userActions": [
+          "AddEpisode",
+          "EditSession",
+          "ViewEpisodeDetail"
+        ],
+        "inputFields": [],
+        "validationReference": [],
+        "dataReadFrom": [
+          "sessions",
+          "episodes"
+        ],
+        "dataWriteTo": [],
+        "cachingPolicy": "memory",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "CreateEpisodeScreen",
+          "EditSessionScreen",
+          "EpisodeDetailScreen"
+        ],
+        "loadingState": "skeleton",
+        "emptyState": "showEmptyEpisodes",
+        "errorState": "showError",
+        "retryBehavior": "reloadSessionDetail"
+      },
+      {
+        "screenName": "CreateEpisodeScreen",
+        "view": "CreateEpisodeView",
+        "viewModel": "CreateEpisodeViewModel",
+        "screenType": "Input",
+        "primaryPurpose": "Add new mismatch episode",
+        "userActions": [
+          "SaveEpisode",
+          "Cancel"
+        ],
+        "inputFields": [
+          {
+            "fieldName": "opponentPosition",
+            "fieldType": "selection",
+            "required": true,
+            "validationGroup": "episodeSelection",
+            "defaultValue": "Guard",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "mismatchType",
+            "fieldType": "selection",
+            "required": true,
+            "validationGroup": "episodeSelection",
+            "defaultValue": "AfterScreen",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "courtZone",
+            "fieldType": "selection",
+            "required": true,
+            "validationGroup": "episodeSelection",
+            "defaultValue": "Top",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "decision",
+            "fieldType": "selection",
+            "required": true,
+            "validationGroup": "episodeSelection",
+            "defaultValue": "Shot",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "result",
+            "fieldType": "selection",
+            "required": true,
+            "validationGroup": "episodeSelection",
+            "defaultValue": "Points",
+            "storageLocation": "local"
+          }
+        ],
+        "validationReference": [
+          "episodeSelection"
+        ],
+        "dataReadFrom": [],
+        "dataWriteTo": [
+          "episodes"
+        ],
+        "cachingPolicy": "none",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "SessionDetailScreen"
+        ],
+        "loadingState": "inline",
+        "emptyState": "none",
+        "errorState": "showError",
+        "retryBehavior": "retrySaveEpisode"
+      },
+      {
+        "screenName": "EpisodeListScreen",
+        "view": "EpisodeListView",
+        "viewModel": "EpisodeListViewModel",
+        "screenType": "List",
+        "primaryPurpose": "Overview of all episodes in session",
+        "userActions": [
+          "FilterEpisodes",
+          "OpenEpisodeDetail"
+        ],
+        "inputFields": [
+          {
+            "fieldName": "filterPosition",
+            "fieldType": "selection",
+            "required": false,
+            "validationGroup": "filterSelection",
+            "defaultValue": "All",
+            "storageLocation": "local"
+          },
+          {
+            "fieldName": "filterType",
+            "fieldType": "selection",
+            "required": false,
+            "validationGroup": "filterSelection",
+            "defaultValue": "All",
+            "storageLocation": "local"
+          }
+        ],
+        "validationReference": [
+          "filterSelection"
+        ],
+        "dataReadFrom": [
+          "episodes"
+        ],
+        "dataWriteTo": [],
+        "cachingPolicy": "memory",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "EpisodeDetailScreen"
+        ],
+        "loadingState": "skeleton",
+        "emptyState": "showNoEpisodes",
+        "errorState": "showError",
+        "retryBehavior": "reloadEpisodes"
+      },
+      {
+        "screenName": "EpisodeDetailScreen",
+        "view": "EpisodeDetailView",
+        "viewModel": "EpisodeDetailViewModel",
+        "screenType": "Detail",
+        "primaryPurpose": "Show full episode details and notes",
+        "userActions": [
+          "AddNote",
+          "EditEpisode"
+        ],
+        "inputFields": [
+          {
+            "fieldName": "tacticalNote",
+            "fieldType": "text",
+            "required": false,
+            "validationGroup": "noteText",
+            "defaultValue": "",
+            "storageLocation": "local"
+          }
+        ],
+        "validationReference": [
+          "noteText"
+        ],
+        "dataReadFrom": [
+          "episodes",
+          "notes"
+        ],
+        "dataWriteTo": [
+          "notes"
+        ],
+        "cachingPolicy": "none",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [
+          "EditEpisodeScreen"
+        ],
+        "loadingState": "inline",
+        "emptyState": "showNoNote",
+        "errorState": "showError",
+        "retryBehavior": "retrySaveNote"
+      },
+      {
+        "screenName": "AnalyticsScreen",
+        "view": "AnalyticsView",
+        "viewModel": "AnalyticsViewModel",
+        "screenType": "Analytics",
+        "primaryPurpose": "Visualize mismatch data and compare sessions",
+        "userActions": [
+          "FilterAnalytics",
+          "CompareSessions"
+        ],
+        "inputFields": [
+          {
+            "fieldName": "analyticsFilter",
+            "fieldType": "selection",
+            "required": false,
+            "validationGroup": "analyticsSelection",
+            "defaultValue": "All",
+            "storageLocation": "local"
+          }
+        ],
+        "validationReference": [
+          "analyticsSelection"
+        ],
+        "dataReadFrom": [
+          "sessions",
+          "episodes"
+        ],
+        "dataWriteTo": [],
+        "cachingPolicy": "memory",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [],
+        "loadingState": "chartSkeleton",
+        "emptyState": "showNoAnalytics",
+        "errorState": "showError",
+        "retryBehavior": "reloadAnalytics"
+      },
+      {
+        "screenName": "PlaybookScreen",
+        "view": "PlaybookView",
+        "viewModel": "PlaybookViewModel",
+        "screenType": "CoreFeature",
+        "primaryPurpose": "Create and manage tactical notes",
+        "userActions": [
+          "AddNote",
+          "EditNote",
+          "DeleteNote"
+        ],
+        "inputFields": [
+          {
+            "fieldName": "playbookNote",
+            "fieldType": "text",
+            "required": true,
+            "validationGroup": "noteText",
+            "defaultValue": "",
+            "storageLocation": "local"
+          }
+        ],
+        "validationReference": [
+          "noteText"
+        ],
+        "dataReadFrom": [
+          "notes"
+        ],
+        "dataWriteTo": [
+          "notes"
+        ],
+        "cachingPolicy": "memory",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [],
+        "loadingState": "skeleton",
+        "emptyState": "showNoNotes",
+        "errorState": "showError",
+        "retryBehavior": "retrySaveNote"
+      },
+      {
+        "screenName": "SettingsScreen",
+        "view": "SettingsView",
+        "viewModel": "SettingsViewModel",
+        "screenType": "Settings",
+        "primaryPurpose": "Manage app preferences and system actions",
+        "userActions": [
+          "ChangeTheme",
+          "ChangeAccentColor",
+          "RateApp",
+          "ShareApp",
+          "ResetSettings",
+          "ClearLocalData",
+          "ViewPrivacyPolicy"
+        ],
+        "inputFields": [],
+        "validationReference": [],
+        "dataReadFrom": [
+          "settings"
+        ],
+        "dataWriteTo": [
+          "settings"
+        ],
+        "cachingPolicy": "none",
+        "offlineBehavior": "full",
+        "connectedServices": [],
+        "navigationLinks": [],
+        "loadingState": "static",
+        "emptyState": "none",
+        "errorState": "showError",
+        "retryBehavior": "retrySettingsAction"
+      }
+    ],
+    "services": [
+      {
+        "serviceName": "LocalDatabase",
+        "serviceType": "Room",
+        "persistence": "device",
+        "syncPolicy": "manual"
+      },
+      {
+        "serviceName": "AnalyticsEngine",
+        "serviceType": "in-app",
+        "persistence": "memory",
+        "syncPolicy": "none"
+      },
+      {
+        "serviceName": "NotificationScheduler",
+        "serviceType": "in-app",
+        "persistence": "memory",
+        "syncPolicy": "none"
+      }
+    ],
+    "validation": {
+      "globalRules": {
+        "constraints": "All required fields must be filled before submission. No duplicate session names allowed.",
+        "errorMessage": "Please complete all required fields.",
+        "systemBehavior": "Block submission until valid."
+      },
+      "textFieldRules": {
+        "constraints": "Max 120 chars, no special symbols except punctuation.",
+        "errorMessage": "Text too long or contains invalid characters.",
+        "systemBehavior": "Highlight and show error."
+      },
+      "numericFieldRules": {
+        "constraints": "Only positive integers allowed.",
+        "errorMessage": "Invalid number.",
+        "systemBehavior": "Block input and show error."
+      },
+      "dateFieldRules": {
+        "constraints": "Date must not be in the future.",
+        "errorMessage": "Invalid date.",
+        "systemBehavior": "Show error and block submission."
+      },
+      "imageRules": {
+        "constraints": "JPEG/PNG only, max 5MB.",
+        "errorMessage": "Invalid image format or size.",
+        "systemBehavior": "Block upload and show error."
+      },
+      "selectionRules": {
+        "constraints": "Selection must match allowed values.",
+        "errorMessage": "Invalid selection.",
+        "systemBehavior": "Show error and reset field."
+      },
+      "errorHandlingStrategy": {
+        "constraints": "All errors logged and shown to user.",
+        "errorMessage": "Unexpected error occurred.",
+        "systemBehavior": "Show dialog and allow retry."
+      },
+      "formSubmissionPolicy": {
+        "constraints": "Submit only if all validations pass.",
+        "errorMessage": "Form contains errors.",
+        "systemBehavior": "Block submission and highlight issues."
+      }
+    },
+    "components": [
+      {
+        "componentName": "SessionCard",
+        "usage": "HomeScreen, SessionDetailScreen",
+        "props": [
+          "sessionName",
+          "sessionDate",
+          "quickStats"
+        ]
+      },
+      {
+        "componentName": "EpisodeItem",
+        "usage": "EpisodeListScreen",
+        "props": [
+          "opponentPosition",
+          "mismatchType",
+          "result"
+        ]
+      },
+      {
+        "componentName": "AnalyticsChart",
+        "usage": "AnalyticsScreen",
+        "props": [
+          "chartType",
+          "data"
+        ]
+      },
+      {
+        "componentName": "PlaybookNoteCard",
+        "usage": "PlaybookScreen",
+        "props": [
+          "noteText",
+          "linkedEpisode"
+        ]
+      },
+      {
+        "componentName": "SettingsItem",
+        "usage": "SettingsScreen",
+        "props": [
+          "itemName",
+          "itemType",
+          "value"
+        ]
+      }
+    ],
+    "ratingFlow": {
+      "type": "native",
+      "implementation": "In-App Review API",
+      "trigger": "Settings > Rate App action",
+      "threshold": null,
+      "feedbackForm": false,
+      "validationRules": [],
+      "redirectCondition": "none"
+    },
+    "notificationFlows": [
+      {
+        "notificationType": "reminder",
+        "title": "Log Your Latest Mismatch",
+        "body": "Don’t forget to record your recent mismatch episodes for better analytics!",
+        "triggerCondition": "No new episode added in 3 days",
+        "frequency": "every 3 days",
+        "deepLinkDestination": "CreateEpisodeScreen",
+        "relatedFeature": "CreateEpisode"
+      },
+      {
+        "notificationType": "tip",
+        "title": "Explore Analytics",
+        "body": "Check out updated analytics to spot new mismatch patterns.",
+        "triggerCondition": "New episode logged",
+        "frequency": "on event",
+        "deepLinkDestination": "AnalyticsScreen",
+        "relatedFeature": "Analytics"
+      }
+    ]
+  }
+}
