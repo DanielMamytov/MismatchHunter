@@ -66,6 +66,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.FilledTonalButton
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -400,6 +402,40 @@ private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> U
             onClick = { vm.save(onSaved) },
             modifier = Modifier.padding(top = 12.dp)
         ) { Text("Save") }
+    }
+}
+
+@Composable
+private fun FilterDropdown(
+    label: String,
+    value: String,
+    options: List<String>,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier.padding(top = 10.dp)) {
+        FilledTonalButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "$label: $value",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -780,10 +816,4 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FilterChipLike(text: String, onClick: () -> Unit) {
-    Button(onClick = onClick, modifier = Modifier.padding(vertical = 4.dp)) { Text(text) }
 }
