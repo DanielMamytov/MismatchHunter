@@ -45,6 +45,7 @@ class PreloaderViewModel(private val settingsRepository: SettingsRepository) : V
     fun retry() {
         _state.value = PreloaderUiState()
     }
+
 }
 
 class OnboardingViewModel(private val settingsRepository: SettingsRepository) : ViewModel() {

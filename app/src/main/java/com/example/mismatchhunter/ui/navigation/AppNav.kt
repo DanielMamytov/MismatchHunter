@@ -245,17 +245,8 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
                             launchSingleTop = true
                         }
                     },
-                    label = { Text(tabTitle(tab)) },
-                    icon = {
-                        // Load the vector drawables from the 'drawable' folder based on the tab
-                        val iconRes = when (tab) {
-                            "sessions" -> R.drawable.ic_sessions
-                            "analytics" -> R.drawable.ic_analytics
-                            "playbook" -> R.drawable.ic_playbook
-                            else -> R.drawable.ic_settings
-                        }
-                        Icon(painter = painterResource(id = iconRes), contentDescription = null)
-                    }
+                    label = { Text(tab.label) },
+                    icon = { Icon(painter = painterResource(id = tab.iconRes), contentDescription = tab.label) }
                 )
             }
         }
@@ -319,6 +310,8 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
 }
 
 
+private data class TabItem(val route: String, val label: String, val iconRes: Int)
+
 private fun tabTitle(tab: String): String = when (tab) {
     "sessions" -> "Сессии"
     "analytics" -> "Аналитика"
@@ -368,6 +361,8 @@ private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> U
     Column(Modifier
         .fillMaxSize()
         .padding(16.dp)) {
+        Spacer(Modifier.height(15.dp))
+
         Text("Create session", style = MaterialTheme.typography.headlineSmall)
         OutlinedTextField(
             value = title,
@@ -410,6 +405,7 @@ private fun SessionDetailScreen(
     Column(Modifier
         .fillMaxSize()
         .padding(16.dp)) {
+        Spacer(Modifier.height(15.dp))
         Text(state.session?.title ?: "Session", style = MaterialTheme.typography.headlineSmall)
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
 
@@ -438,6 +434,7 @@ private fun SessionDetailScreen(
         }
     }
 }
+
 @Composable
 private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
     val fields = listOf(vm.position, vm.switchType, vm.zone, vm.decision, vm.result)
@@ -489,7 +486,8 @@ private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit)
                 label = { Text("Tactical note") },
                 modifier = Modifier.fillMaxWidth()
             )
-            Button(onClick = { vm.saveNote(note) }, modifier = Modifier.padding(top = 8.dp)) {
+
+            Button(onClick = { vm.saveNote(note, onSaved) }, modifier = Modifier.padding(top = 8.dp)) {
                 Text(
                     "Save note"
                 )
@@ -497,6 +495,7 @@ private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit)
         }
     }
 }
+
 
 @Composable
 private fun AnalyticsScreen(
