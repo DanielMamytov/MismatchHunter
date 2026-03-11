@@ -18,6 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -39,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -49,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -409,9 +413,39 @@ private fun SessionDetailScreen(
         Text(state.session?.title ?: "Session", style = MaterialTheme.typography.headlineSmall)
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            FilterChipLike("Position: ${state.positionFilter}") { vm.setPositionFilter(if (state.positionFilter == "All") "PG" else "All") }
-            FilterChipLike("Result: ${state.resultFilter}") { vm.setResultFilter(if (state.resultFilter == "All") "Score" else "All") }
+        val isRussian = remember(state.positionFilter, state.resultFilter) {
+            state.positionFilter.any { it.code in 0x0400..0x04FF } ||
+                state.resultFilter.any { it.code in 0x0400..0x04FF } ||
+                state.positionFilter == "Все" || state.resultFilter == "Все"
+        }
+        val allLabel = if (isRussian) "Все" else "All"
+        val positionLabel = if (isRussian) "Позиция" else "Position"
+        val resultLabel = if (isRussian) "Результат" else "Result"
+        val positionOptions = remember(state.episodes, allLabel) {
+            listOf(allLabel) + state.episodes.map { it.opponentPosition }.distinct().sorted()
+        }
+        val resultOptions = remember(state.episodes, allLabel) {
+            listOf(allLabel) + state.episodes.map { it.result }.distinct().sorted()
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            FilterDropdown(
+                modifier = Modifier.weight(1f),
+                label = positionLabel,
+                value = state.positionFilter,
+                options = positionOptions,
+                onSelect = vm::setPositionFilter
+            )
+            FilterDropdown(
+                modifier = Modifier.weight(1f),
+                label = resultLabel,
+                value = state.resultFilter,
+                options = resultOptions,
+                onSelect = vm::setResultFilter
+            )
         }
 
         Button(
@@ -690,6 +724,35 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
 }
 
 @Composable
-private fun FilterChipLike(text: String, onClick: () -> Unit) {
-    Button(onClick = onClick, modifier = Modifier.padding(vertical = 4.dp)) { Text(text) }
+private fun FilterDropdown(
+    label: String,
+    value: String,
+    options: List<String>,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier.padding(top = 10.dp)) {
+        FilledTonalButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "$label: $value",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
