@@ -250,9 +250,18 @@ class AnalyticsViewModel(episodeRepository: EpisodeRepository) : ViewModel() {
 
 class PlaybookViewModel(
     private val noteRepository: NoteRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    sessionRepository: SessionRepository,
+    episodeRepository: EpisodeRepository
 ) : ViewModel() {
     val notes = noteRepository.observeNotes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val sessions = sessionRepository.observeSessions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val allEpisodes = episodeRepository.observeAllEpisodes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val selectedSessionId = MutableStateFlow<Long?>(null)
+    val selectedEpisodeId = MutableStateFlow<Long?>(null)
+    val availableEpisodes = combine(allEpisodes, selectedSessionId) { episodes, sessionId ->
+        if (sessionId == null) episodes else episodes.filter { it.sessionId == sessionId }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val title = MutableStateFlow("")
     val body = MutableStateFlow("")
 
@@ -270,10 +279,36 @@ class PlaybookViewModel(
 
     fun save() = viewModelScope.launch {
         if (title.value.isBlank() || body.value.isBlank()) return@launch
-        noteRepository.save(NoteEntity(title = title.value, body = body.value))
+        noteRepository.save(
+            NoteEntity(
+                title = title.value,
+                body = body.value,
+                sessionId = selectedSessionId.value,
+                episodeId = selectedEpisodeId.value
+            )
+        )
         title.value = ""
         body.value = ""
+        selectedSessionId.value = null
+        selectedEpisodeId.value = null
         settingsRepository.clearPlaybookDraft()
+    }
+
+    fun selectSession(sessionId: Long?) {
+        selectedSessionId.value = sessionId
+        if (selectedEpisodeId.value != null) {
+            val episodeBelongsToSession = allEpisodes.value.any { it.id == selectedEpisodeId.value && (sessionId == null || it.sessionId == sessionId) }
+            if (!episodeBelongsToSession) selectedEpisodeId.value = null
+        }
+    }
+
+    fun selectEpisode(episodeId: Long?) {
+        selectedEpisodeId.value = episodeId
+        if (episodeId != null) {
+            allEpisodes.value.firstOrNull { it.id == episodeId }?.let { episode ->
+                selectedSessionId.value = episode.sessionId
+            }
+        }
     }
 }
 
@@ -306,7 +341,7 @@ class AppViewModelFactory(
             modelClass.isAssignableFrom(EpisodeEntryViewModel::class.java) -> EpisodeEntryViewModel(episodeRepository, settingsRepository)
             modelClass.isAssignableFrom(EpisodeDetailViewModel::class.java) -> EpisodeDetailViewModel(episodeId ?: 0, episodeRepository, noteRepository)
             modelClass.isAssignableFrom(AnalyticsViewModel::class.java) -> AnalyticsViewModel(episodeRepository)
-            modelClass.isAssignableFrom(PlaybookViewModel::class.java) -> PlaybookViewModel(noteRepository, settingsRepository)
+            modelClass.isAssignableFrom(PlaybookViewModel::class.java) -> PlaybookViewModel(noteRepository, settingsRepository, sessionRepository, episodeRepository)
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> SettingsViewModel(settingsRepository)
             else -> error("Неизвестный класс модели: ${modelClass.name}")
         }
