@@ -18,6 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,11 +26,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -39,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -49,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -60,11 +66,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.FilledTonalButton
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.mismatchhunter.R
-import com.example.mismatchhunter.data.local.EpisodeEntity
+import com.example.mismatchhunter.data.local.SessionEntity
 import com.example.mismatchhunter.di.AppContainer
 import com.example.mismatchhunter.ui.viewmodel.AnalyticsViewModel
 import com.example.mismatchhunter.ui.viewmodel.AppViewModelFactory
@@ -263,7 +271,7 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
                 )
                 val state by vm.state.collectAsState()
                 HomeScreen(
-                    state.recent,
+                    sessions = state.sessions,
                     onCreateSession = { rootNav.navigate("create_session") },
                     onOpenSession = { rootNav.navigate("session/$it") })
             }
@@ -322,7 +330,7 @@ private fun tabTitle(tab: String): String = when (tab) {
 
 @Composable
 private fun HomeScreen(
-    recent: List<EpisodeEntity>,
+    sessions: List<SessionEntity>,
     onCreateSession: () -> Unit,
     onOpenSession: (Long) -> Unit
 ) {
@@ -333,19 +341,21 @@ private fun HomeScreen(
             Text("Sessions", style = MaterialTheme.typography.headlineSmall)
             Button(onClick = onCreateSession) { Text("New") }
         }
-        Text("Recent episodes: ${recent.size}")
-        if (recent.isEmpty()) Text("No episodes yet. Create a session.")
+        if (sessions.isEmpty()) Text("No sessions yet. Create a session.")
         LazyColumn {
-            items(recent) { ep ->
+            items(sessions) { session ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 6.dp),
-                    onClick = { onOpenSession(ep.sessionId) }
+                    onClick = { onOpenSession(session.id) }
                 ) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("${ep.opponentPosition} • ${ep.switchType}")
-                        Text("${ep.result} • ${DateUtils.formatMillis(ep.createdAt)}")
+                        Text(session.title)
+                        Text("${session.matchType} • ${DateUtils.formatEpochDay(session.dateEpochDay)}")
+                        if (session.description.isNotBlank()) {
+                            Text(session.description)
+                        }
                     }
                 }
             }
@@ -396,6 +406,40 @@ private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> U
 }
 
 @Composable
+private fun FilterDropdown(
+    label: String,
+    value: String,
+    options: List<String>,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier.padding(top = 10.dp)) {
+        FilledTonalButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "$label: $value",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SessionDetailScreen(
     vm: SessionDetailViewModel,
     openAddEpisode: () -> Unit,
@@ -409,9 +453,39 @@ private fun SessionDetailScreen(
         Text(state.session?.title ?: "Session", style = MaterialTheme.typography.headlineSmall)
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            FilterChipLike("Position: ${state.positionFilter}") { vm.setPositionFilter(if (state.positionFilter == "All") "PG" else "All") }
-            FilterChipLike("Result: ${state.resultFilter}") { vm.setResultFilter(if (state.resultFilter == "All") "Score" else "All") }
+        val isRussian = remember(state.positionFilter, state.resultFilter) {
+            state.positionFilter.any { it.code in 0x0400..0x04FF } ||
+                state.resultFilter.any { it.code in 0x0400..0x04FF } ||
+                state.positionFilter == "Все" || state.resultFilter == "Все"
+        }
+        val allLabel = if (isRussian) "Все" else "All"
+        val positionLabel = if (isRussian) "Позиция" else "Position"
+        val resultLabel = if (isRussian) "Результат" else "Result"
+        val positionOptions = remember(state.episodes, allLabel) {
+            listOf(allLabel) + state.episodes.map { it.opponentPosition }.distinct().sorted()
+        }
+        val resultOptions = remember(state.episodes, allLabel) {
+            listOf(allLabel) + state.episodes.map { it.result }.distinct().sorted()
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            FilterDropdown(
+                modifier = Modifier.weight(1f),
+                label = positionLabel,
+                value = state.positionFilter,
+                options = positionOptions,
+                onSelect = vm::setPositionFilter
+            )
+            FilterDropdown(
+                modifier = Modifier.weight(1f),
+                label = resultLabel,
+                value = state.resultFilter,
+                options = resultOptions,
+                onSelect = vm::setResultFilter
+            )
         }
 
         Button(
@@ -468,31 +542,86 @@ private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit)
         note = episode?.tacticalNote.orEmpty()
     }
 
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         if (episode == null) Text("Loading...") else {
-            Text(
-                "${episode?.opponentPosition} / ${episode?.switchType}",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(top = 32.dp)  // Added top padding here
-            )
-            Text("Zone: ${episode?.courtZone}")
-            Text("Decision: ${episode?.decision}")
-            Text("Result: ${episode?.result}")
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        "Episode details",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "${episode?.opponentPosition} / ${episode?.switchType}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EpisodeBadge("Zone", episode?.courtZone.orEmpty())
+                        EpisodeBadge("Result", episode?.result.orEmpty())
+                    }
+
+                    EpisodeDetailRow("Decision", episode?.decision.orEmpty())
+                }
+            }
+
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text("Tactical note") },
+                minLines = 3,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Button(onClick = { vm.saveNote(note, onSaved) }, modifier = Modifier.padding(top = 8.dp)) {
+            Button(onClick = { vm.saveNote(note, onSaved) }, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     "Save note"
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun EpisodeBadge(label: String, value: String) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(text = label, style = MaterialTheme.typography.labelSmall)
+            Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun EpisodeDetailRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(8.dp))
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
     }
 }
 
