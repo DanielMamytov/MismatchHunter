@@ -505,14 +505,62 @@ private fun AnalyticsScreen(
 ) {
     Column(Modifier
         .fillMaxSize()
-        .padding(16.dp)) {
-        Text("Analytics", style = MaterialTheme.typography.headlineSmall)
-        Text("Offensive decision success rate: $successRate%")
-        Text("By position")
-        byPosition.forEach { (k, v) -> Text("$k: $v") }
-        Spacer(Modifier.height(8.dp))
-        Text("By zone")
-        byZone.forEach { (k, v) -> Text("$k: $v") }
+        .padding(horizontal = 20.dp, vertical = 24.dp)) {
+        Text(
+            "Analytics",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Offensive decision success rate",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            "$successRate%",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+        )
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    "By position",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(10.dp))
+                byPosition.forEach { (k, v) ->
+                    Text(
+                        "$k: $v",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    "By zone",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(10.dp))
+                byZone.forEach { (k, v) ->
+                    Text(
+                        "$k: $v",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
