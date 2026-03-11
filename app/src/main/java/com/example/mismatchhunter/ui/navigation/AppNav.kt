@@ -412,8 +412,8 @@ private fun SessionDetailScreen(
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            FilterChipLike("Position: ${state.positionFilter}") { vm.setPositionFilter(if (state.positionFilter == "All") "PG" else "All") }
-            FilterChipLike("Result: ${state.resultFilter}") { vm.setResultFilter(if (state.resultFilter == "All") "Score" else "All") }
+            FilterChipLike("Position: ${state.positionFilter}") { vm.setPositionFilter(if (state.positionFilter == "Все") "PG" else "Все") }
+            FilterChipLike("Result: ${state.resultFilter}") { vm.setResultFilter(if (state.resultFilter == "Все") "Score" else "Все") }
         }
 
         Button(
