@@ -516,11 +516,24 @@ private fun AnalyticsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlaybookScreen(vm: PlaybookViewModel) {
     val notes by vm.notes.collectAsState();
+    val sessions by vm.sessions.collectAsState()
+    val episodes by vm.availableEpisodes.collectAsState()
+    val selectedSessionId by vm.selectedSessionId.collectAsState()
+    val selectedEpisodeId by vm.selectedEpisodeId.collectAsState()
     val title by vm.title.collectAsState();
     val body by vm.body.collectAsState()
+    var sessionExpanded by remember { mutableStateOf(false) }
+    var episodeExpanded by remember { mutableStateOf(false) }
+
+    val sessionLabel = sessions.firstOrNull { it.id == selectedSessionId }?.title ?: "No session"
+    val episodeLabel = episodes.firstOrNull { it.id == selectedEpisodeId }?.let {
+        "#${it.id}: ${it.opponentPosition} / ${it.switchType}"
+    } ?: "No episode"
+
     Column(Modifier
         .fillMaxSize()
         .padding(16.dp)) {
@@ -537,6 +550,56 @@ private fun PlaybookScreen(vm: PlaybookViewModel) {
             label = { Text("Body") },
             modifier = Modifier.fillMaxWidth()
         )
+        ExposedDropdownMenuBox(expanded = sessionExpanded, onExpandedChange = { sessionExpanded = it }) {
+            OutlinedTextField(
+                value = sessionLabel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Link to session") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sessionExpanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+            ExposedDropdownMenu(expanded = sessionExpanded, onDismissRequest = { sessionExpanded = false }) {
+                DropdownMenuItem(text = { Text("No session") }, onClick = {
+                    vm.selectSession(null)
+                    sessionExpanded = false
+                })
+                sessions.forEach { session ->
+                    DropdownMenuItem(text = { Text(session.title) }, onClick = {
+                        vm.selectSession(session.id)
+                        sessionExpanded = false
+                    })
+                }
+            }
+        }
+        ExposedDropdownMenuBox(expanded = episodeExpanded, onExpandedChange = { episodeExpanded = it }) {
+            OutlinedTextField(
+                value = episodeLabel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Link to episode") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = episodeExpanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+            ExposedDropdownMenu(expanded = episodeExpanded, onDismissRequest = { episodeExpanded = false }) {
+                DropdownMenuItem(text = { Text("No episode") }, onClick = {
+                    vm.selectEpisode(null)
+                    episodeExpanded = false
+                })
+                episodes.forEach { episode ->
+                    DropdownMenuItem(text = { Text("#${episode.id}: ${episode.opponentPosition} / ${episode.switchType}") }, onClick = {
+                        vm.selectEpisode(episode.id)
+                        episodeExpanded = false
+                    })
+                }
+            }
+        }
         Button(
             onClick = { vm.save() },
             modifier = Modifier.padding(vertical = 8.dp)
@@ -552,6 +615,17 @@ private fun PlaybookScreen(vm: PlaybookViewModel) {
                         Text(note.title, fontWeight = FontWeight.Bold); Text(
                         note.body
                     )
+                        if (note.sessionId != null || note.episodeId != null) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                buildString {
+                                    if (note.sessionId != null) append("Session #${note.sessionId}")
+                                    if (note.sessionId != null && note.episodeId != null) append(" · ")
+                                    if (note.episodeId != null) append("Episode #${note.episodeId}")
+                                },
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }
