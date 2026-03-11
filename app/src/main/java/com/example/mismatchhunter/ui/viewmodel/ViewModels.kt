@@ -107,8 +107,12 @@ class CreateSessionViewModel(
 data class SessionDetailUiState(
     val session: SessionEntity? = null,
     val episodes: List<EpisodeEntity> = emptyList(),
-    val positionFilter: String = "Все",
-    val resultFilter: String = "Все"
+    val positionFilter: String = "All",
+    val switchTypeFilter: String = "All",
+    val resultFilter: String = "All",
+    val availablePositions: List<String> = listOf("All"),
+    val availableSwitchTypes: List<String> = listOf("All"),
+    val availableResults: List<String> = listOf("All")
 )
 
 class SessionDetailViewModel(
@@ -116,17 +120,32 @@ class SessionDetailViewModel(
     sessionRepository: SessionRepository,
     episodeRepository: EpisodeRepository
 ) : ViewModel() {
-    private val positionFilter = MutableStateFlow("Все")
-    private val resultFilter = MutableStateFlow("Все")
+    private val positionFilter = MutableStateFlow("All")
+    private val switchTypeFilter = MutableStateFlow("All")
+    private val resultFilter = MutableStateFlow("All")
 
     val state = combine(
         sessionRepository.observeSession(sessionId),
         episodeRepository.observeEpisodes(sessionId),
         positionFilter,
+        switchTypeFilter,
         resultFilter
-    ) { session, episodes, pos, result ->
-        val filtered = episodes.filter { (pos == "Все" || it.opponentPosition == pos) && (result == "Все" || it.result == result) }
-        SessionDetailUiState(session, filtered, pos, result)
+    ) { session, episodes, pos, switchType, result ->
+        val filtered = episodes.filter {
+            (pos == "All" || it.opponentPosition == pos) &&
+                (switchType == "All" || it.switchType == switchType) &&
+                (result == "All" || it.result == result)
+        }
+        SessionDetailUiState(
+            session = session,
+            episodes = filtered,
+            positionFilter = pos,
+            switchTypeFilter = switchType,
+            resultFilter = result,
+            availablePositions = listOf("All") + episodes.map { it.opponentPosition }.distinct().sorted(),
+            availableSwitchTypes = listOf("All") + episodes.map { it.switchType }.distinct().sorted(),
+            availableResults = listOf("All") + episodes.map { it.result }.distinct().sorted()
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SessionDetailUiState())
 
     fun setPositionFilter(value: String) {
@@ -135,6 +154,10 @@ class SessionDetailViewModel(
 
     fun setResultFilter(value: String) {
         resultFilter.value = value
+    }
+
+    fun setSwitchTypeFilter(value: String) {
+        switchTypeFilter.value = value
     }
 }
 

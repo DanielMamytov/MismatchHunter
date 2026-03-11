@@ -31,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -411,10 +412,24 @@ private fun SessionDetailScreen(
         Text(state.session?.title ?: "Session", style = MaterialTheme.typography.headlineSmall)
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            FilterChipLike("Position: ${state.positionFilter}") { vm.setPositionFilter(if (state.positionFilter == "Все") "PG" else "Все") }
-            FilterChipLike("Result: ${state.resultFilter}") { vm.setResultFilter(if (state.resultFilter == "Все") "Score" else "Все") }
-        }
+        FilterDropdown(
+            label = "Opponent position",
+            selected = state.positionFilter,
+            options = state.availablePositions,
+            onSelected = vm::setPositionFilter
+        )
+        FilterDropdown(
+            label = "Mismatch type",
+            selected = state.switchTypeFilter,
+            options = state.availableSwitchTypes,
+            onSelected = vm::setSwitchTypeFilter
+        )
+        FilterDropdown(
+            label = "Result",
+            selected = state.resultFilter,
+            options = state.availableResults,
+            onSelected = vm::setResultFilter
+        )
 
         Button(
             onClick = openAddEpisode,
@@ -691,7 +706,41 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterChipLike(text: String, onClick: () -> Unit) {
-    Button(onClick = onClick, modifier = Modifier.padding(vertical = 4.dp)) { Text(text) }
+private fun FilterDropdown(
+    label: String,
+    selected: String,
+    options: List<String>,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelected(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
