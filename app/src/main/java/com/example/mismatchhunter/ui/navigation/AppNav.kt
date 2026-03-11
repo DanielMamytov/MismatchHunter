@@ -26,12 +26,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -41,7 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -504,31 +506,86 @@ private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit)
         note = episode?.tacticalNote.orEmpty()
     }
 
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         if (episode == null) Text("Loading...") else {
-            Text(
-                "${episode?.opponentPosition} / ${episode?.switchType}",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(top = 32.dp)  // Added top padding here
-            )
-            Text("Zone: ${episode?.courtZone}")
-            Text("Decision: ${episode?.decision}")
-            Text("Result: ${episode?.result}")
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        "Episode details",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "${episode?.opponentPosition} / ${episode?.switchType}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EpisodeBadge("Zone", episode?.courtZone.orEmpty())
+                        EpisodeBadge("Result", episode?.result.orEmpty())
+                    }
+
+                    EpisodeDetailRow("Decision", episode?.decision.orEmpty())
+                }
+            }
+
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text("Tactical note") },
+                minLines = 3,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Button(onClick = { vm.saveNote(note, onSaved) }, modifier = Modifier.padding(top = 8.dp)) {
+            Button(onClick = { vm.saveNote(note, onSaved) }, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     "Save note"
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun EpisodeBadge(label: String, value: String) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(text = label, style = MaterialTheme.typography.labelSmall)
+            Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun EpisodeDetailRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(8.dp))
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -727,35 +784,6 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterDropdown(
-    label: String,
-    value: String,
-    options: List<String>,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier = modifier.padding(top = 10.dp)) {
-        FilledTonalButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "$label: $value",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onSelect(option)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
+private fun FilterChipLike(text: String, onClick: () -> Unit) {
+    Button(onClick = onClick, modifier = Modifier.padding(vertical = 4.dp)) { Text(text) }
 }
