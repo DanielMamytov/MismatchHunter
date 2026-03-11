@@ -18,6 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -68,7 +70,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.mismatchhunter.R
-import com.example.mismatchhunter.data.local.EpisodeEntity
+import com.example.mismatchhunter.data.local.SessionEntity
 import com.example.mismatchhunter.di.AppContainer
 import com.example.mismatchhunter.ui.viewmodel.AnalyticsViewModel
 import com.example.mismatchhunter.ui.viewmodel.AppViewModelFactory
@@ -267,7 +269,7 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
                 )
                 val state by vm.state.collectAsState()
                 HomeScreen(
-                    state.recent,
+                    sessions = state.sessions,
                     onCreateSession = { rootNav.navigate("create_session") },
                     onOpenSession = { rootNav.navigate("session/$it") })
             }
@@ -326,7 +328,7 @@ private fun tabTitle(tab: String): String = when (tab) {
 
 @Composable
 private fun HomeScreen(
-    recent: List<EpisodeEntity>,
+    sessions: List<SessionEntity>,
     onCreateSession: () -> Unit,
     onOpenSession: (Long) -> Unit
 ) {
@@ -337,19 +339,21 @@ private fun HomeScreen(
             Text("Sessions", style = MaterialTheme.typography.headlineSmall)
             Button(onClick = onCreateSession) { Text("New") }
         }
-        Text("Recent episodes: ${recent.size}")
-        if (recent.isEmpty()) Text("No episodes yet. Create a session.")
+        if (sessions.isEmpty()) Text("No sessions yet. Create a session.")
         LazyColumn {
-            items(recent) { ep ->
+            items(sessions) { session ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 6.dp),
-                    onClick = { onOpenSession(ep.sessionId) }
+                    onClick = { onOpenSession(session.id) }
                 ) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("${ep.opponentPosition} • ${ep.switchType}")
-                        Text("${ep.result} • ${DateUtils.formatMillis(ep.createdAt)}")
+                        Text(session.title)
+                        Text("${session.matchType} • ${DateUtils.formatEpochDay(session.dateEpochDay)}")
+                        if (session.description.isNotBlank()) {
+                            Text(session.description)
+                        }
                     }
                 }
             }
@@ -413,9 +417,39 @@ private fun SessionDetailScreen(
         Text(state.session?.title ?: "Session", style = MaterialTheme.typography.headlineSmall)
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            FilterChipLike("Position: ${state.positionFilter}") { vm.setPositionFilter(if (state.positionFilter == "All") "PG" else "All") }
-            FilterChipLike("Result: ${state.resultFilter}") { vm.setResultFilter(if (state.resultFilter == "All") "Score" else "All") }
+        val isRussian = remember(state.positionFilter, state.resultFilter) {
+            state.positionFilter.any { it.code in 0x0400..0x04FF } ||
+                state.resultFilter.any { it.code in 0x0400..0x04FF } ||
+                state.positionFilter == "Все" || state.resultFilter == "Все"
+        }
+        val allLabel = if (isRussian) "Все" else "All"
+        val positionLabel = if (isRussian) "Позиция" else "Position"
+        val resultLabel = if (isRussian) "Результат" else "Result"
+        val positionOptions = remember(state.episodes, allLabel) {
+            listOf(allLabel) + state.episodes.map { it.opponentPosition }.distinct().sorted()
+        }
+        val resultOptions = remember(state.episodes, allLabel) {
+            listOf(allLabel) + state.episodes.map { it.result }.distinct().sorted()
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            FilterDropdown(
+                modifier = Modifier.weight(1f),
+                label = positionLabel,
+                value = state.positionFilter,
+                options = positionOptions,
+                onSelect = vm::setPositionFilter
+            )
+            FilterDropdown(
+                modifier = Modifier.weight(1f),
+                label = resultLabel,
+                value = state.resultFilter,
+                options = resultOptions,
+                onSelect = vm::setResultFilter
+            )
         }
 
         Button(
@@ -748,6 +782,7 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterChipLike(text: String, onClick: () -> Unit) {
     Button(onClick = onClick, modifier = Modifier.padding(vertical = 4.dp)) { Text(text) }
