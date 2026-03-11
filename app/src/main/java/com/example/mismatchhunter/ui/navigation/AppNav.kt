@@ -64,7 +64,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.mismatchhunter.R
-import com.example.mismatchhunter.data.local.EpisodeEntity
+import com.example.mismatchhunter.data.local.SessionEntity
 import com.example.mismatchhunter.di.AppContainer
 import com.example.mismatchhunter.ui.viewmodel.AnalyticsViewModel
 import com.example.mismatchhunter.ui.viewmodel.AppViewModelFactory
@@ -263,7 +263,7 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
                 )
                 val state by vm.state.collectAsState()
                 HomeScreen(
-                    state.recent,
+                    sessions = state.sessions,
                     onCreateSession = { rootNav.navigate("create_session") },
                     onOpenSession = { rootNav.navigate("session/$it") })
             }
@@ -322,7 +322,7 @@ private fun tabTitle(tab: String): String = when (tab) {
 
 @Composable
 private fun HomeScreen(
-    recent: List<EpisodeEntity>,
+    sessions: List<SessionEntity>,
     onCreateSession: () -> Unit,
     onOpenSession: (Long) -> Unit
 ) {
@@ -333,19 +333,21 @@ private fun HomeScreen(
             Text("Sessions", style = MaterialTheme.typography.headlineSmall)
             Button(onClick = onCreateSession) { Text("New") }
         }
-        Text("Recent episodes: ${recent.size}")
-        if (recent.isEmpty()) Text("No episodes yet. Create a session.")
+        if (sessions.isEmpty()) Text("No sessions yet. Create a session.")
         LazyColumn {
-            items(recent) { ep ->
+            items(sessions) { session ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 6.dp),
-                    onClick = { onOpenSession(ep.sessionId) }
+                    onClick = { onOpenSession(session.id) }
                 ) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("${ep.opponentPosition} • ${ep.switchType}")
-                        Text("${ep.result} • ${DateUtils.formatMillis(ep.createdAt)}")
+                        Text(session.title)
+                        Text("${session.matchType} • ${DateUtils.formatEpochDay(session.dateEpochDay)}")
+                        if (session.description.isNotBlank()) {
+                            Text(session.description)
+                        }
                     }
                 }
             }
