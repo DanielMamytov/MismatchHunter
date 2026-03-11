@@ -109,9 +109,7 @@ fun AppNav(appContainer: AppContainer) {
                 }
             }
             Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
+                Modifier.screenContainerPadding(horizontal = 24.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -217,10 +215,8 @@ fun AppNav(appContainer: AppContainer) {
 private fun OnboardingScreen(title: String, text: String, button: String, onNext: () -> Unit) {
     Column(
         Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(24.dp),
+            .screenContainerPadding(horizontal = 24.dp, top = 24.dp, bottom = 24.dp)
+            .navigationBarsPadding(),
         verticalArrangement = Arrangement.Center
     ) {
         Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -328,15 +324,22 @@ private fun tabTitle(tab: String): String = when (tab) {
     else -> tab
 }
 
+private fun Modifier.screenContainerPadding(
+    horizontal: androidx.compose.ui.unit.Dp = 16.dp,
+    top: androidx.compose.ui.unit.Dp = 24.dp,
+    bottom: androidx.compose.ui.unit.Dp = 16.dp
+): Modifier = this
+    .fillMaxSize()
+    .statusBarsPadding()
+    .padding(start = horizontal, end = horizontal, top = top, bottom = bottom)
+
 @Composable
 private fun HomeScreen(
     sessions: List<SessionEntity>,
     onCreateSession: () -> Unit,
     onOpenSession: (Long) -> Unit
 ) {
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(Modifier.screenContainerPadding()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Sessions", style = MaterialTheme.typography.headlineSmall)
             Button(onClick = onCreateSession) { Text("New") }
@@ -368,9 +371,7 @@ private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> U
     val match by vm.matchType.collectAsState()
     val description by vm.description.collectAsState()
     val error by vm.error.collectAsState()
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(Modifier.screenContainerPadding()) {
         Spacer(Modifier.height(15.dp))
 
         Text("Create session", style = MaterialTheme.typography.headlineSmall)
@@ -446,9 +447,7 @@ private fun SessionDetailScreen(
     openEpisode: (Long) -> Unit
 ) {
     val state by vm.state.collectAsState()
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(Modifier.screenContainerPadding()) {
         Spacer(Modifier.height(15.dp))
         Text(state.session?.title ?: "Session", style = MaterialTheme.typography.headlineSmall)
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
@@ -513,9 +512,7 @@ private fun SessionDetailScreen(
 private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
     val fields = listOf(vm.position, vm.switchType, vm.zone, vm.decision, vm.result)
     val labels = listOf("Position", "Mismatch type", "Zone", "Decision", "Result")
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(Modifier.screenContainerPadding()) {
         Text("Episode entry", style = MaterialTheme.typography.headlineSmall)
         fields.forEachIndexed { index, state ->
             OutlinedTextField(
@@ -543,9 +540,7 @@ private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit)
     }
 
     Column(
-        Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        Modifier.screenContainerPadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (episode == null) Text("Loading...") else {
@@ -632,9 +627,7 @@ private fun AnalyticsScreen(
     byZone: Map<String, Int>,
     successRate: Int
 ) {
-    Column(Modifier
-        .fillMaxSize()
-        .padding(horizontal = 20.dp, vertical = 24.dp)) {
+    Column(Modifier.screenContainerPadding(horizontal = 20.dp, top = 24.dp, bottom = 24.dp)) {
         Text(
             "Analytics",
             style = MaterialTheme.typography.headlineMedium,
@@ -711,9 +704,7 @@ private fun PlaybookScreen(vm: PlaybookViewModel) {
         "#${it.id}: ${it.opponentPosition} / ${it.switchType}"
     } ?: "No episode"
 
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(Modifier.screenContainerPadding()) {
         Text("Playbook notes", style = MaterialTheme.typography.headlineSmall)
         OutlinedTextField(
             value = title,
@@ -874,9 +865,7 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
         notificationsAllowed = granted && hasNotificationPermission()
         vm.setSeasonalNotifications(notificationsAllowed)
     }
-    Column(Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(Modifier.screenContainerPadding()) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall)
         Row(
             verticalAlignment = Alignment.CenterVertically,
