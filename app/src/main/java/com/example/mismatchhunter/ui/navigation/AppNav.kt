@@ -8,12 +8,12 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationManagerCompat
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -67,8 +68,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.FilledTonalButton
@@ -271,9 +270,10 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
                 )
                 val state by vm.state.collectAsState()
                 HomeScreen(
-                    sessions = state.sessions,
+                    state = state,
                     onCreateSession = { rootNav.navigate("create_session") },
-                    onOpenSession = { rootNav.navigate("session/$it") })
+                    onOpenSession = { rootNav.navigate("session/$it") },
+                    onRetry = vm::retry)
             }
             composable("analytics") {
                 val vm: AnalyticsViewModel = viewModel(
@@ -285,7 +285,7 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
                     )
                 )
                 val state by vm.state.collectAsState()
-                AnalyticsScreen(state.byPosition, state.byZone, state.successRate)
+                AnalyticsScreen(state = state, onSessionSelect = vm::selectSession, onPeriodSelect = vm::selectPeriod, onRetry = vm::retry)
             }
             composable("playbook") {
                 val vm: PlaybookViewModel = viewModel(
@@ -339,18 +339,27 @@ private fun Modifier.screenContainerPadding(
 
 @Composable
 private fun HomeScreen(
-    sessions: List<SessionEntity>,
+    state: com.example.mismatchhunter.ui.viewmodel.HomeUiState,
     onCreateSession: () -> Unit,
-    onOpenSession: (Long) -> Unit
+    onOpenSession: (Long) -> Unit,
+    onRetry: () -> Unit
 ) {
     Column(Modifier.screenContainerPadding()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Sessions", style = MaterialTheme.typography.headlineSmall)
             Button(onClick = onCreateSession) { Text("New") }
         }
-        if (sessions.isEmpty()) Text("No sessions yet. Create a session.")
+        if (state.loading) CircularProgressIndicator()
+        state.error?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = onRetry) { Text("Retry") }
+        }
+        if (state.recent.isNotEmpty()) {
+            Text("Recent episodes: ${state.recent.size}", modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
+        }
+        if (!state.loading && state.sessions.isEmpty()) Text("No sessions yet. Create a session.")
         LazyColumn {
-            items(sessions) { session ->
+            items(state.sessions) { session ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -373,6 +382,7 @@ private fun HomeScreen(
 @Composable
 private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> Unit) {
     val title by vm.title.collectAsState()
+    val date by vm.date.collectAsState()
     val match by vm.matchType.collectAsState()
     val description by vm.description.collectAsState()
     val error by vm.error.collectAsState()
@@ -384,6 +394,13 @@ private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> U
             value = title,
             onValueChange = { vm.title.value = it },
             label = { Text("Title") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = date,
+            onValueChange = { vm.date.value = it },
+            label = { Text("Date (YYYY-MM-DD)") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -645,18 +662,31 @@ private fun EntryDropdownField(
 }
 @Composable
 private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit) {
-    val episode by vm.episode.collectAsState()
+    val state by vm.state.collectAsState()
+    val episode = state.episode
     var note by remember { mutableStateOf("") }
+    var position by remember { mutableStateOf("") }
+    var switchType by remember { mutableStateOf("") }
+    var zone by remember { mutableStateOf("") }
+    var decision by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf("") }
 
     LaunchedEffect(episode?.id) {
         note = episode?.tacticalNote.orEmpty()
+        position = episode?.opponentPosition.orEmpty()
+        switchType = episode?.switchType.orEmpty()
+        zone = episode?.courtZone.orEmpty()
+        decision = episode?.decision.orEmpty()
+        result = episode?.result.orEmpty()
     }
 
     Column(
         Modifier.screenContainerPadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (episode == null) Text("Loading...") else {
+        if (state.loading) CircularProgressIndicator() else if (episode == null) { Text(state.error ?: "Loading...")
+            TextButton(onClick = vm::retry) { Text("Retry") }
+        } else {
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -690,6 +720,14 @@ private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit)
                     EpisodeDetailRow("Decision", episode?.decision.orEmpty())
                 }
             }
+
+            OutlinedTextField(value = position, onValueChange = { position = it }, label = { Text("Position") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = switchType, onValueChange = { switchType = it }, label = { Text("Mismatch type") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = zone, onValueChange = { zone = it }, label = { Text("Zone") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = decision, onValueChange = { decision = it }, label = { Text("Decision") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = result, onValueChange = { result = it }, label = { Text("Result") }, modifier = Modifier.fillMaxWidth())
+
+            Button(onClick = { vm.saveEpisodeFields(position, switchType, zone, decision, result, onSaved) }, modifier = Modifier.fillMaxWidth()) { Text("Save episode") }
 
             OutlinedTextField(
                 value = note,
@@ -736,9 +774,10 @@ private fun EpisodeDetailRow(label: String, value: String) {
 
 @Composable
 private fun AnalyticsScreen(
-    byPosition: Map<String, Int>,
-    byZone: Map<String, Int>,
-    successRate: Int
+    state: com.example.mismatchhunter.ui.viewmodel.AnalyticsUiState,
+    onSessionSelect: (Long?) -> Unit,
+    onPeriodSelect: (String) -> Unit,
+    onRetry: () -> Unit
 ) {
     Column(Modifier.screenContainerPadding(horizontal = 20.dp, top = 24.dp, bottom = 24.dp)) {
         Text(
@@ -746,6 +785,24 @@ private fun AnalyticsScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.ExtraBold
         )
+        Spacer(Modifier.height(12.dp))
+        FilterDropdown(
+            label = "Session",
+            value = state.sessions.firstOrNull { it.id == state.selectedSessionId }?.title ?: "All sessions",
+            options = listOf("All sessions") + state.sessions.map { it.title },
+            onSelect = { selected -> onSessionSelect(state.sessions.firstOrNull { it.title == selected }?.id) }
+        )
+        FilterDropdown(
+            label = "Period",
+            value = state.selectedPeriod,
+            options = listOf("All time", "Last 7 days", "Last 30 days"),
+            onSelect = onPeriodSelect
+        )
+        if (state.loading) CircularProgressIndicator()
+        state.error?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = onRetry) { Text("Retry") }
+        }
         Spacer(Modifier.height(16.dp))
         Text(
             "Offensive decision success rate",
@@ -753,7 +810,7 @@ private fun AnalyticsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            "$successRate%",
+            "${state.successRate}%",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
@@ -767,13 +824,7 @@ private fun AnalyticsScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(10.dp))
-                byPosition.forEach { (k, v) ->
-                    Text(
-                        "$k: $v",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
+                MiniBarChart(state.byPosition)
             }
         }
 
@@ -787,13 +838,7 @@ private fun AnalyticsScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(10.dp))
-                byZone.forEach { (k, v) ->
-                    Text(
-                        "$k: $v",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
+                MiniBarChart(state.byZone)
             }
         }
     }
@@ -819,6 +864,12 @@ private fun PlaybookScreen(vm: PlaybookViewModel) {
 
     Column(Modifier.screenContainerPadding()) {
         Text("Playbook notes", style = MaterialTheme.typography.headlineSmall)
+        OutlinedTextField(
+            value = vm.searchQuery.collectAsState().value,
+            onValueChange = { vm.searchQuery.value = it },
+            label = { Text("Search notes") },
+            modifier = Modifier.fillMaxWidth()
+        )
         OutlinedTextField(
             value = title,
             onValueChange = { vm.title.value = it },
@@ -914,6 +965,34 @@ private fun PlaybookScreen(vm: PlaybookViewModel) {
     }
 }
 
+
+@Composable
+private fun MiniBarChart(data: Map<String, Int>) {
+    if (data.isEmpty()) {
+        Text("No data", style = MaterialTheme.typography.bodyMedium)
+        return
+    }
+    val maxValue = data.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        data.forEach { (label, value) ->
+            Text("$label: $value", style = MaterialTheme.typography.bodyMedium)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(value.toFloat() / maxValue.toFloat())
+                        .height(10.dp)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) {
@@ -978,6 +1057,41 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
         notificationsAllowed = granted && hasNotificationPermission()
         vm.setSeasonalNotifications(notificationsAllowed)
     }
+
+    var showClearConfirm by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    var privateMode by remember { mutableStateOf(true) }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text("Clear local data?") },
+            text = { Text("This action removes all sessions, episodes, and notes from this device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showClearConfirm = false
+                    vm.clearLocalData { Toast.makeText(context, "Local data cleared", Toast.LENGTH_SHORT).show() }
+                }) { Text("Clear") }
+            },
+            dismissButton = { TextButton(onClick = { showClearConfirm = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text("Reset settings?") },
+            text = { Text("Theme, accent, and onboarding state will be reset.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showResetConfirm = false
+                    vm.reset { Toast.makeText(context, "Settings reset", Toast.LENGTH_SHORT).show(); onResetDone() }
+                }) { Text("Reset") }
+            },
+            dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text("Cancel") } }
+        )
+    }
+
     Column(Modifier.screenContainerPadding()) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall)
         Row(
@@ -1029,10 +1143,21 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
                 }
             }
         }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+            Text("Private mode")
+            Switch(
+                checked = privateMode,
+                onCheckedChange = {
+                    privateMode = it
+                    Toast.makeText(context, if (it) "Private mode enabled" else "Private mode disabled", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+
         Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp)) {
-                TextButton(onClick = vm::clearLocalData, modifier = Modifier.fillMaxWidth()) { Text("Clear local data") }
-                TextButton(onClick = { vm.reset(onResetDone) }, modifier = Modifier.fillMaxWidth()) { Text("Reset settings") }
+                TextButton(onClick = { showClearConfirm = true }, modifier = Modifier.fillMaxWidth()) { Text("Clear local data") }
+                TextButton(onClick = { showResetConfirm = true }, modifier = Modifier.fillMaxWidth()) { Text("Reset settings") }
                 TextButton(onClick = ::openRateApp, modifier = Modifier.fillMaxWidth()) { Text("Rate app") }
                 TextButton(onClick = ::shareApp, modifier = Modifier.fillMaxWidth()) { Text("Share app") }
 

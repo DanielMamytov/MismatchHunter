@@ -21,6 +21,7 @@ data class AppSettings(
 
 data class SessionDraft(
     val title: String = "",
+    val date: String = "",
     val matchType: String = "Regular",
     val description: String = ""
 )
@@ -48,6 +49,7 @@ class SettingsStore(private val context: Context) {
 
         val sessionDraftTitle = stringPreferencesKey("session_draft_title")
         val sessionDraftMatchType = stringPreferencesKey("session_draft_match_type")
+        val sessionDraftDate = stringPreferencesKey("session_draft_date")
         val sessionDraftDescription = stringPreferencesKey("session_draft_description")
 
         val episodeDraftPosition = stringPreferencesKey("episode_draft_position")
@@ -92,6 +94,7 @@ class SettingsStore(private val context: Context) {
         val prefs = context.dataStore.data.first()
         return SessionDraft(
             title = prefs[Keys.sessionDraftTitle] ?: "",
+            date = prefs[Keys.sessionDraftDate] ?: java.time.LocalDate.now().toString(),
             matchType = prefs[Keys.sessionDraftMatchType] ?: "",
             description = prefs[Keys.sessionDraftDescription] ?: ""
         )
@@ -100,6 +103,7 @@ class SettingsStore(private val context: Context) {
     suspend fun saveSessionDraft(draft: SessionDraft) {
         context.dataStore.edit {
             it[Keys.sessionDraftTitle] = draft.title
+            it[Keys.sessionDraftDate] = draft.date
             it[Keys.sessionDraftMatchType] = draft.matchType
             it[Keys.sessionDraftDescription] = draft.description
         }
@@ -108,6 +112,7 @@ class SettingsStore(private val context: Context) {
     suspend fun clearSessionDraft() {
         context.dataStore.edit {
             it.remove(Keys.sessionDraftTitle)
+            it.remove(Keys.sessionDraftDate)
             it.remove(Keys.sessionDraftMatchType)
             it.remove(Keys.sessionDraftDescription)
         }
