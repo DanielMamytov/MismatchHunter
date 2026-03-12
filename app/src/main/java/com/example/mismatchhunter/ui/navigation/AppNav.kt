@@ -326,7 +326,7 @@ private fun tabTitle(tab: String): String = when (tab) {
 
 private fun Modifier.screenContainerPadding(
     horizontal: androidx.compose.ui.unit.Dp = 16.dp,
-    top: androidx.compose.ui.unit.Dp = 24.dp,
+    top: androidx.compose.ui.unit.Dp = 15.dp,
     bottom: androidx.compose.ui.unit.Dp = 16.dp
 ): Modifier = this
     .fillMaxSize()
@@ -365,6 +365,7 @@ private fun HomeScreen(
         }
     }
 }
+
 @Composable
 private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> Unit) {
     val title by vm.title.collectAsState()
