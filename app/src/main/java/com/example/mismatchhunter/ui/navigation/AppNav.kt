@@ -457,29 +457,25 @@ private fun SessionDetailScreen(
         Text(state.session?.title ?: "Session", style = MaterialTheme.typography.headlineSmall)
         Text(state.session?.let { DateUtils.formatEpochDay(it.dateEpochDay) } ?: "")
 
-        val isRussian = remember(state.positionFilter, state.resultFilter) {
-            state.positionFilter.any { it.code in 0x0400..0x04FF } ||
-                    state.resultFilter.any { it.code in 0x0400..0x04FF } ||
-                    state.positionFilter == "All" || state.resultFilter == "All"
-        }
-        val allLabel = if (isRussian) "Все" else "All"
-        val positionLabel = if (isRussian) "Position" else "Position"
-        val resultLabel = if (isRussian) "Result" else "Result"
-        val positionOptions = remember(state.episodes, allLabel) {
-            listOf(allLabel) + state.episodes.map { it.opponentPosition }.distinct().sorted()
-        }
-        val resultOptions = remember(state.episodes, allLabel) {
-            listOf(allLabel) + state.episodes.map { it.result }.distinct().sorted()
-        }
+        val positionOptions = remember(state.availablePositions) { state.availablePositions }
+        val switchTypeOptions = remember(state.availableSwitchTypes) { state.availableSwitchTypes }
+        val resultOptions = remember(state.availableResults) { state.availableResults }
 
-        Text(positionLabel, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 8.dp))
+        Text("Position", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 8.dp))
         DropdownFilter(
             selectedValue = state.positionFilter,
             options = positionOptions,
             onSelect = vm::setPositionFilter
         )
 
-        Text(resultLabel, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 8.dp))
+        Text("Mismatch type", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 8.dp))
+        DropdownFilter(
+            selectedValue = state.switchTypeFilter,
+            options = switchTypeOptions,
+            onSelect = vm::setSwitchTypeFilter
+        )
+
+        Text("Result", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 8.dp))
         DropdownFilter(
             selectedValue = state.resultFilter,
             options = resultOptions,
