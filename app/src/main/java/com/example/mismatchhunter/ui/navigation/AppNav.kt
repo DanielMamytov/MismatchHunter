@@ -317,10 +317,10 @@ private fun MainTabs(appContainer: AppContainer, rootNav: NavHostController) {
 private data class TabItem(val route: String, val label: String, val iconRes: Int)
 
 private fun tabTitle(tab: String): String = when (tab) {
-    "sessions" -> "Сессии"
-    "analytics" -> "Аналитика"
-    "playbook" -> "Заметки"
-    "settings" -> "Настройки"
+    "sessions" -> "Sessions"
+    "analytics" -> "Analytics"
+    "playbook" -> "Notes"
+    "settings" -> "Settings"
     else -> tab
 }
 
@@ -456,11 +456,11 @@ private fun SessionDetailScreen(
         val isRussian = remember(state.positionFilter, state.resultFilter) {
             state.positionFilter.any { it.code in 0x0400..0x04FF } ||
                 state.resultFilter.any { it.code in 0x0400..0x04FF } ||
-                state.positionFilter == "Все" || state.resultFilter == "Все"
+                state.positionFilter == "All" || state.resultFilter == "All"
         }
-        val allLabel = if (isRussian) "Все" else "All"
-        val positionLabel = if (isRussian) "Позиция" else "Position"
-        val resultLabel = if (isRussian) "Результат" else "Result"
+        val allLabel = if (isRussian) "All" else "All"
+        val positionLabel = if (isRussian) "Position" else "Position"
+        val resultLabel = if (isRussian) "Result" else "Result"
         val positionOptions = remember(state.episodes, allLabel) {
             listOf(allLabel) + state.episodes.map { it.opponentPosition }.distinct().sorted()
         }
@@ -877,7 +877,7 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
             Switch(checked = settings.darkTheme, onCheckedChange = vm::setDarkTheme)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("Сезонные уведомления")
+            Text("Seasonal notifications")
             Switch(
                 checked = settings.seasonalNotifications && notificationsAllowed,
                 onCheckedChange = { enabled ->
@@ -919,12 +919,12 @@ private fun SettingsScreen(vm: SettingsViewModel, onResetDone: () -> Unit = {}) 
         }
         Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp)) {
-                TextButton(onClick = vm::clearLocalData, modifier = Modifier.fillMaxWidth()) { Text("Очистить локальные данные") }
-                TextButton(onClick = { vm.reset(onResetDone) }, modifier = Modifier.fillMaxWidth()) { Text("Сбросить настройки") }
-                TextButton(onClick = ::openRateApp, modifier = Modifier.fillMaxWidth()) { Text("Оценить приложение") }
-                TextButton(onClick = ::shareApp, modifier = Modifier.fillMaxWidth()) { Text("Поделиться приложением") }
+                TextButton(onClick = vm::clearLocalData, modifier = Modifier.fillMaxWidth()) { Text("Clear local data") }
+                TextButton(onClick = { vm.reset(onResetDone) }, modifier = Modifier.fillMaxWidth()) { Text("Reset settings") }
+                TextButton(onClick = ::openRateApp, modifier = Modifier.fillMaxWidth()) { Text("Rate app") }
+                TextButton(onClick = ::shareApp, modifier = Modifier.fillMaxWidth()) { Text("Share app") }
 
-                Text("Версия 1.0", modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp))
+                Text("Version 1.0", modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp))
             }
         }
     }

@@ -37,7 +37,7 @@ class PreloaderViewModel(private val settingsRepository: SettingsRepository) : V
             }.onSuccess { settings ->
                 _state.value = PreloaderUiState(loading = false, route = if (settings.onboardingCompleted) "main" else "onboarding1")
             }.onFailure {
-                _state.value = PreloaderUiState(loading = false, error = "Ошибка инициализации")
+                _state.value = PreloaderUiState(loading = false, error = "Initialization error")
             }
         }
     }
@@ -66,7 +66,7 @@ class CreateSessionViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     val title = MutableStateFlow("")
-    val matchType = MutableStateFlow("Обычный")
+    val matchType = MutableStateFlow("Regular")
     val description = MutableStateFlow("")
     val error = MutableStateFlow<String?>(null)
 
@@ -223,7 +223,7 @@ class EpisodeDetailViewModel(
         val normalizedNote = note.trim()
         repository.updateEpisode(current.copy(tacticalNote = normalizedNote))
         if (normalizedNote.isNotBlank()) {
-            val title = "Эпизод: ${current.opponentPosition} / ${current.switchType}"
+            val title = "Episode: ${current.opponentPosition} / ${current.switchType}"
             noteRepository.saveEpisodeNote(
                 episodeId = current.id,
                 title = title,
@@ -239,7 +239,7 @@ data class AnalyticsUiState(val byPosition: Map<String, Int> = emptyMap(), val b
 class AnalyticsViewModel(episodeRepository: EpisodeRepository) : ViewModel() {
     val state = episodeRepository.observeAllEpisodes().combine(MutableStateFlow(Unit)) { episodes, _ ->
         val total = episodes.size.coerceAtLeast(1)
-        val successful = episodes.count { it.result == "Гол" || it.result == "Заработанный фол" }
+        val successful = episodes.count { it.result == "Goal" || it.result == "Drawn foul" }
         AnalyticsUiState(
             byPosition = episodes.groupingBy { it.opponentPosition }.eachCount(),
             byZone = episodes.groupingBy { it.courtZone }.eachCount(),
@@ -343,7 +343,7 @@ class AppViewModelFactory(
             modelClass.isAssignableFrom(AnalyticsViewModel::class.java) -> AnalyticsViewModel(episodeRepository)
             modelClass.isAssignableFrom(PlaybookViewModel::class.java) -> PlaybookViewModel(noteRepository, settingsRepository, sessionRepository, episodeRepository)
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> SettingsViewModel(settingsRepository)
-            else -> error("Неизвестный класс модели: ${modelClass.name}")
+            else -> error("Unknown model class: ${modelClass.name}")
         }
         @Suppress("UNCHECKED_CAST")
         return vm as T
