@@ -3,12 +3,12 @@ package com.example.mismatchhunter.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.mismatchhunter.data.local.EpisodeDraft
 import com.example.mismatchhunter.data.local.EpisodeEntity
 import com.example.mismatchhunter.data.local.NoteEntity
-import com.example.mismatchhunter.data.local.SessionEntity
-import com.example.mismatchhunter.data.local.EpisodeDraft
 import com.example.mismatchhunter.data.local.PlaybookDraft
 import com.example.mismatchhunter.data.local.SessionDraft
+import com.example.mismatchhunter.data.local.SessionEntity
 import com.example.mismatchhunter.data.repository.EpisodeRepository
 import com.example.mismatchhunter.data.repository.NoteRepository
 import com.example.mismatchhunter.data.repository.SessionRepository
@@ -30,6 +30,10 @@ class PreloaderViewModel(private val settingsRepository: SettingsRepository) : V
     val state: StateFlow<PreloaderUiState> = _state
 
     init {
+        initialize()
+    }
+
+    private fun initialize() {
         viewModelScope.launch {
             runCatching {
                 delay(1400)
@@ -44,21 +48,30 @@ class PreloaderViewModel(private val settingsRepository: SettingsRepository) : V
 
     fun retry() {
         _state.value = PreloaderUiState()
+        initialize()
     }
-
 }
 
 class OnboardingViewModel(private val settingsRepository: SettingsRepository) : ViewModel() {
     fun complete(onDone: () -> Unit) = viewModelScope.launch {
         settingsRepository.completeOnboarding()
         onDone()
-    }}
+    }
+}
 
-data class HomeUiState(val sessions: List<SessionEntity> = emptyList(), val recent: List<EpisodeEntity> = emptyList())
+data class HomeUiState(
+    val sessions: List<SessionEntity> = emptyList(),
+    val recent: List<EpisodeEntity> = emptyList(),
+    val loading: Boolean = true,
+    val error: String? = null
+)
+
 class HomeViewModel(sessionRepository: SessionRepository, episodeRepository: EpisodeRepository) : ViewModel() {
     val state = combine(sessionRepository.observeSessions(), episodeRepository.observeAllEpisodes()) { s, e ->
-        HomeUiState(s, e.take(5))
+        HomeUiState(sessions = s, recent = e.take(5), loading = false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    fun retry() = Unit
 }
 
 class CreateSessionViewModel(
@@ -66,6 +79,7 @@ class CreateSessionViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     val title = MutableStateFlow("")
+    val date = MutableStateFlow(DateUtils.todayIso())
     val matchType = MutableStateFlow("Regular")
     val description = MutableStateFlow("")
     val error = MutableStateFlow<String?>(null)
@@ -74,29 +88,39 @@ class CreateSessionViewModel(
         viewModelScope.launch {
             val draft = settingsRepository.getSessionDraft()
             title.value = draft.title
+            date.value = draft.date
             matchType.value = draft.matchType
             description.value = draft.description
         }
         viewModelScope.launch {
-            combine(title, matchType, description) { title, matchType, description ->
-                SessionDraft(title = title, matchType = matchType, description = description)
+            combine(title, date, matchType, description) { title, date, matchType, description ->
+                SessionDraft(title = title, date = date, matchType = matchType, description = description)
             }.collect { draft ->
                 settingsRepository.saveSessionDraft(draft)
             }
         }
     }
 
+    private fun validate(): String? {
+        if (title.value.length < 3) return "Title must be at least 3 characters"
+        if (DateUtils.parseIsoToEpochDay(date.value) == null) return "Date must be in format YYYY-MM-DD"
+        if (matchType.value.isBlank()) return "Match type is required"
+        return null
+    }
+
     fun save(onSaved: (Long) -> Unit) = viewModelScope.launch {
-        if (title.value.length < 3) {
-            error.value = "Title must be at least 3 characters"
+        val validationError = validate()
+        if (validationError != null) {
+            error.value = validationError
             return@launch
         }
+
         val id = sessionRepository.createSession(
             SessionEntity(
                 title = title.value,
                 matchType = matchType.value,
                 description = description.value,
-                dateEpochDay = DateUtils.epochDayNow()
+                dateEpochDay = DateUtils.parseIsoToEpochDay(date.value) ?: DateUtils.epochDayNow()
             )
         )
         settingsRepository.clearSessionDraft()
@@ -112,7 +136,9 @@ data class SessionDetailUiState(
     val resultFilter: String = "All",
     val availablePositions: List<String> = listOf("All"),
     val availableSwitchTypes: List<String> = listOf("All"),
-    val availableResults: List<String> = listOf("All")
+    val availableResults: List<String> = listOf("All"),
+    val loading: Boolean = true,
+    val error: String? = null
 )
 
 class SessionDetailViewModel(
@@ -144,7 +170,8 @@ class SessionDetailViewModel(
             resultFilter = result,
             availablePositions = listOf("All") + episodes.map { it.opponentPosition }.distinct().sorted(),
             availableSwitchTypes = listOf("All") + episodes.map { it.switchType }.distinct().sorted(),
-            availableResults = listOf("All") + episodes.map { it.result }.distinct().sorted()
+            availableResults = listOf("All") + episodes.map { it.result }.distinct().sorted(),
+            loading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SessionDetailUiState())
 
@@ -159,6 +186,8 @@ class SessionDetailViewModel(
     fun setSwitchTypeFilter(value: String) {
         switchTypeFilter.value = value
     }
+
+    fun retry() = Unit
 }
 
 class EpisodeEntryViewModel(
@@ -211,15 +240,30 @@ class EpisodeEntryViewModel(
     }
 }
 
+data class EpisodeDetailUiState(
+    val loading: Boolean = true,
+    val episode: EpisodeEntity? = null,
+    val error: String? = null
+)
+
 class EpisodeDetailViewModel(
     private val episodeId: Long,
     private val repository: EpisodeRepository,
     private val noteRepository: NoteRepository
 ) : ViewModel() {
-    val episode = repository.observeEpisode(episodeId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    private val reload = MutableStateFlow(0)
+
+    val state = reload.combine(repository.observeEpisode(episodeId)) { _, episode ->
+        if (episode == null) EpisodeDetailUiState(loading = false, error = "Failed to load episode")
+        else EpisodeDetailUiState(loading = false, episode = episode)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EpisodeDetailUiState())
+
+    fun retry() {
+        reload.value += 1
+    }
 
     fun saveNote(note: String, onSaved: () -> Unit) = viewModelScope.launch {
-        val current = episode.value ?: return@launch
+        val current = state.value.episode ?: return@launch
         val normalizedNote = note.trim()
         repository.updateEpisode(current.copy(tacticalNote = normalizedNote))
         if (normalizedNote.isNotBlank()) {
@@ -233,19 +277,81 @@ class EpisodeDetailViewModel(
         }
         onSaved()
     }
+
+    fun saveEpisodeFields(
+        position: String,
+        switchType: String,
+        zone: String,
+        decision: String,
+        result: String,
+        onSaved: () -> Unit
+    ) = viewModelScope.launch {
+        val current = state.value.episode ?: return@launch
+        repository.updateEpisode(
+            current.copy(
+                opponentPosition = position,
+                switchType = switchType,
+                courtZone = zone,
+                decision = decision,
+                result = result
+            )
+        )
+        onSaved()
+    }
 }
 
-data class AnalyticsUiState(val byPosition: Map<String, Int> = emptyMap(), val byZone: Map<String, Int> = emptyMap(), val successRate: Int = 0)
-class AnalyticsViewModel(episodeRepository: EpisodeRepository) : ViewModel() {
-    val state = episodeRepository.observeAllEpisodes().combine(MutableStateFlow(Unit)) { episodes, _ ->
-        val total = episodes.size.coerceAtLeast(1)
-        val successful = episodes.count { it.result == "Goal" || it.result == "Drawn foul" }
+data class AnalyticsUiState(
+    val byPosition: Map<String, Int> = emptyMap(),
+    val byZone: Map<String, Int> = emptyMap(),
+    val successRate: Int = 0,
+    val loading: Boolean = true,
+    val error: String? = null,
+    val sessions: List<SessionEntity> = emptyList(),
+    val selectedSessionId: Long? = null,
+    val selectedPeriod: String = "All time"
+)
+
+class AnalyticsViewModel(
+    private val episodeRepository: EpisodeRepository,
+    private val sessionRepository: SessionRepository
+) : ViewModel() {
+    private val selectedSessionId = MutableStateFlow<Long?>(null)
+    private val selectedPeriod = MutableStateFlow("All time")
+
+    val state = combine(
+        episodeRepository.observeAllEpisodes(),
+        sessionRepository.observeSessions(),
+        selectedSessionId,
+        selectedPeriod
+    ) { episodes, sessions, sessionId, period ->
+        val filteredBySession = if (sessionId == null) episodes else episodes.filter { it.sessionId == sessionId }
+        val filtered = when (period) {
+            "Last 7 days" -> filteredBySession.filter { it.createdAt >= System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L }
+            "Last 30 days" -> filteredBySession.filter { it.createdAt >= System.currentTimeMillis() - 30 * 24 * 60 * 60 * 1000L }
+            else -> filteredBySession
+        }
+        val total = filtered.size.coerceAtLeast(1)
+        val successful = filtered.count { it.result == "Goal" || it.result == "Drawn foul" }
         AnalyticsUiState(
-            byPosition = episodes.groupingBy { it.opponentPosition }.eachCount(),
-            byZone = episodes.groupingBy { it.courtZone }.eachCount(),
-            successRate = (successful * 100) / total
+            byPosition = filtered.groupingBy { it.opponentPosition }.eachCount(),
+            byZone = filtered.groupingBy { it.courtZone }.eachCount(),
+            successRate = (successful * 100) / total,
+            loading = false,
+            sessions = sessions,
+            selectedSessionId = sessionId,
+            selectedPeriod = period
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
+
+    fun selectSession(sessionId: Long?) {
+        selectedSessionId.value = sessionId
+    }
+
+    fun selectPeriod(period: String) {
+        selectedPeriod.value = period
+    }
+
+    fun retry() = Unit
 }
 
 class PlaybookViewModel(
@@ -254,11 +360,17 @@ class PlaybookViewModel(
     sessionRepository: SessionRepository,
     episodeRepository: EpisodeRepository
 ) : ViewModel() {
-    val notes = noteRepository.observeNotes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val allNotes = noteRepository.observeNotes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val sessions = sessionRepository.observeSessions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     private val allEpisodes = episodeRepository.observeAllEpisodes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val selectedSessionId = MutableStateFlow<Long?>(null)
     val selectedEpisodeId = MutableStateFlow<Long?>(null)
+    val searchQuery = MutableStateFlow("")
+    val notes = combine(allNotes, searchQuery) { notes, query ->
+        if (query.isBlank()) notes else notes.filter {
+            it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val availableEpisodes = combine(allEpisodes, selectedSessionId) { episodes, sessionId ->
         if (sessionId == null) episodes else episodes.filter { it.sessionId == sessionId }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -320,7 +432,12 @@ class SettingsViewModel(private val settingsRepository: SettingsRepository) : Vi
     fun reset(onDone: () -> Unit = {}) = viewModelScope.launch {
         settingsRepository.reset()
         onDone()
-    }    fun clearLocalData() = viewModelScope.launch { settingsRepository.clearLocalData() }
+    }
+
+    fun clearLocalData(onDone: () -> Unit = {}) = viewModelScope.launch {
+        settingsRepository.clearLocalData()
+        onDone()
+    }
 }
 
 class AppViewModelFactory(
@@ -340,7 +457,7 @@ class AppViewModelFactory(
             modelClass.isAssignableFrom(SessionDetailViewModel::class.java) -> SessionDetailViewModel(sessionId ?: 0, sessionRepository, episodeRepository)
             modelClass.isAssignableFrom(EpisodeEntryViewModel::class.java) -> EpisodeEntryViewModel(episodeRepository, settingsRepository)
             modelClass.isAssignableFrom(EpisodeDetailViewModel::class.java) -> EpisodeDetailViewModel(episodeId ?: 0, episodeRepository, noteRepository)
-            modelClass.isAssignableFrom(AnalyticsViewModel::class.java) -> AnalyticsViewModel(episodeRepository)
+            modelClass.isAssignableFrom(AnalyticsViewModel::class.java) -> AnalyticsViewModel(episodeRepository, sessionRepository)
             modelClass.isAssignableFrom(PlaybookViewModel::class.java) -> PlaybookViewModel(noteRepository, settingsRepository, sessionRepository, episodeRepository)
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> SettingsViewModel(settingsRepository)
             else -> error("Unknown model class: ${modelClass.name}")

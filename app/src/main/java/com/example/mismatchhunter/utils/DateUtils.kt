@@ -11,6 +11,10 @@ object DateUtils {
 
     fun epochDayNow(): Long = LocalDate.now().toEpochDay()
 
+    fun todayIso(): String = LocalDate.now().toString()
+
+    fun parseIsoToEpochDay(value: String): Long? = runCatching { LocalDate.parse(value).toEpochDay() }.getOrNull()
+
     fun formatEpochDay(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(dateFormatter)
 
     fun formatMillis(millis: Long): String = Instant.ofEpochMilli(millis)
