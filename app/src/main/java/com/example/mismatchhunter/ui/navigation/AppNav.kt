@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationManagerCompat
@@ -66,6 +67,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.FilledTonalButton
 import androidx.navigation.compose.composable
@@ -455,10 +459,10 @@ private fun SessionDetailScreen(
 
         val isRussian = remember(state.positionFilter, state.resultFilter) {
             state.positionFilter.any { it.code in 0x0400..0x04FF } ||
-                state.resultFilter.any { it.code in 0x0400..0x04FF } ||
-                state.positionFilter == "All" || state.resultFilter == "All"
+                    state.resultFilter.any { it.code in 0x0400..0x04FF } ||
+                    state.positionFilter == "All" || state.resultFilter == "All"
         }
-        val allLabel = if (isRussian) "All" else "All"
+        val allLabel = if (isRussian) "Все" else "All"
         val positionLabel = if (isRussian) "Position" else "Position"
         val resultLabel = if (isRussian) "Result" else "Result"
         val positionOptions = remember(state.episodes, allLabel) {
@@ -468,31 +472,30 @@ private fun SessionDetailScreen(
             listOf(allLabel) + state.episodes.map { it.result }.distinct().sorted()
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            FilterDropdown(
-                modifier = Modifier.weight(1f),
-                label = positionLabel,
-                value = state.positionFilter,
-                options = positionOptions,
-                onSelect = vm::setPositionFilter
-            )
-            FilterDropdown(
-                modifier = Modifier.weight(1f),
-                label = resultLabel,
-                value = state.resultFilter,
-                options = resultOptions,
-                onSelect = vm::setResultFilter
-            )
-        }
+        Text(positionLabel, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 8.dp))
+        DropdownFilter(
+            selectedValue = state.positionFilter,
+            options = positionOptions,
+            onSelect = vm::setPositionFilter
+        )
+
+        Text(resultLabel, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(vertical = 8.dp))
+        DropdownFilter(
+            selectedValue = state.resultFilter,
+            options = resultOptions,
+            onSelect = vm::setResultFilter
+        )
 
         Button(
             onClick = openAddEpisode,
-            modifier = Modifier.padding(vertical = 8.dp)
-        ) { Text("Add episode") }
+            modifier = Modifier.padding(vertical = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text("Add episode", color = MaterialTheme.colorScheme.onPrimary)
+        }
+
         if (state.episodes.isEmpty()) Text("No data for this filter")
+
         LazyColumn {
             items(state.episodes) { ep ->
                 Card(
@@ -509,6 +512,48 @@ private fun SessionDetailScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DropdownFilter(
+    selectedValue: String,
+    options: List<String>,
+    onSelect: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedValue,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Select Filter") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .menuAnchor()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
     val fields = listOf(vm.position, vm.switchType, vm.zone, vm.decision)
@@ -517,8 +562,12 @@ private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
     val resultOptions = remember {
         listOf("Goal", "Drawn foul", "Miss", "Turnover", "No shot")
     }
+
+    var expanded by remember { mutableStateOf(false) }
+
     Column(Modifier.screenContainerPadding()) {
         Text("Episode entry", style = MaterialTheme.typography.headlineSmall)
+
         fields.forEachIndexed { index, state ->
             OutlinedTextField(
                 value = state.collectAsState().value,
@@ -527,22 +576,55 @@ private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
-                )
+            )
         }
 
-        FilterDropdown(
-            label = "5/5 Result",
-            value = selectedResult.ifBlank { "Select" },
-            options = resultOptions,
-            onSelect = { vm.result.value = it },
-            modifier = Modifier.fillMaxWidth()
-        )
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = selectedResult,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("5/5 Result") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            )
 
-        vm.error.collectAsState().value?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = onSave, modifier = Modifier.padding(top = 8.dp)) { Text("Save") }
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                resultOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            vm.result.value = option
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        vm.error.collectAsState().value?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
+
+        Button(
+            onClick = onSave,
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Save")
+        }
     }
 }
-
 @Composable
 private fun EpisodeDetailScreen(vm: EpisodeDetailViewModel, onSaved: () -> Unit) {
     val episode by vm.episode.collectAsState()
