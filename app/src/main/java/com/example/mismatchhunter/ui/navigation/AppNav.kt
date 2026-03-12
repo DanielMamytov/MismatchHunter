@@ -511,8 +511,12 @@ private fun SessionDetailScreen(
 
 @Composable
 private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
-    val fields = listOf(vm.position, vm.switchType, vm.zone, vm.decision, vm.result)
-    val labels = listOf("Position", "Mismatch type", "Zone", "Decision", "Result")
+    val fields = listOf(vm.position, vm.switchType, vm.zone, vm.decision)
+    val labels = listOf("Position", "Mismatch type", "Zone", "Decision")
+    val selectedResult = vm.result.collectAsState().value
+    val resultOptions = remember {
+        listOf("Goal", "Drawn foul", "Miss", "Turnover", "No shot")
+    }
     Column(Modifier.screenContainerPadding()) {
         Text("Episode entry", style = MaterialTheme.typography.headlineSmall)
         fields.forEachIndexed { index, state ->
@@ -523,8 +527,16 @@ private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
-            )
+                )
         }
+
+        FilterDropdown(
+            label = "5/5 Result",
+            value = selectedResult.ifBlank { "Select" },
+            options = resultOptions,
+            onSelect = { vm.result.value = it },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         vm.error.collectAsState().value?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = onSave, modifier = Modifier.padding(top = 8.dp)) { Text("Save") }
