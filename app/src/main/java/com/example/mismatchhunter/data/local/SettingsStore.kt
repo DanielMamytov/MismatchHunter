@@ -21,7 +21,7 @@ data class AppSettings(
 
 data class SessionDraft(
     val title: String = "",
-    val matchType: String = "Обычный",
+    val matchType: String = "Regular",
     val description: String = ""
 )
 
