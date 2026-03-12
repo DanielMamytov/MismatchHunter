@@ -554,60 +554,37 @@ fun DropdownFilter(
 private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
     val fields = listOf(vm.position, vm.switchType, vm.zone, vm.decision)
     val labels = listOf("Position", "Mismatch type", "Zone", "Decision")
+    val fieldOptions = remember {
+        listOf(
+            listOf("PG", "SG", "SF", "PF", "C"),
+            listOf("On-ball screen", "Off-ball screen", "Isolation", "Early offense", "Transition"),
+            listOf("Top", "Left wing", "Right wing", "Left corner", "Right corner", "Paint"),
+            listOf("Attack mismatch", "Pass out", "Reset", "Post-up", "Drive and kick")
+        )
+    }
     val selectedResult = vm.result.collectAsState().value
     val resultOptions = remember {
         listOf("Goal", "Drawn foul", "Miss", "Turnover", "No shot")
     }
 
-    var expanded by remember { mutableStateOf(false) }
-
     Column(Modifier.screenContainerPadding()) {
         Text("Episode entry", style = MaterialTheme.typography.headlineSmall)
 
         fields.forEachIndexed { index, state ->
-            OutlinedTextField(
-                value = state.collectAsState().value,
-                onValueChange = { state.value = it },
-                label = { Text("${index + 1}/5 ${labels[index]}") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+            EntryDropdownField(
+                selectedValue = state.collectAsState().value,
+                options = fieldOptions[index],
+                label = "${index + 1}/5 ${labels[index]}",
+                onSelect = { state.value = it }
             )
         }
 
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                value = selectedResult,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("5/5 Result") },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            )
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                resultOptions.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option) },
-                        onClick = {
-                            vm.result.value = option
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
+        EntryDropdownField(
+            selectedValue = selectedResult,
+            options = resultOptions,
+            label = "5/5 Result",
+            onSelect = { vm.result.value = it }
+        )
 
         vm.error.collectAsState().value?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
@@ -618,6 +595,51 @@ private fun EpisodeEntryScreen(vm: EpisodeEntryViewModel, onSave: () -> Unit) {
             modifier = Modifier.padding(top = 8.dp)
         ) {
             Text("Save")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EntryDropdownField(
+    selectedValue: String,
+    options: List<String>,
+    label: String,
+    onSelect: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedValue,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }
