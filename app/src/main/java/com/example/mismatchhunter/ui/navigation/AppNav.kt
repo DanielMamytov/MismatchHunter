@@ -430,6 +430,7 @@ private fun CreateSessionScreen(vm: CreateSessionViewModel, onSaved: (Long) -> U
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterDropdown(
     label: String,

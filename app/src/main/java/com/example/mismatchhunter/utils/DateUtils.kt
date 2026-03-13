@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object DateUtils {
-    private val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale("ru"))
+    private val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale("eng"))
 
     fun epochDayNow(): Long = LocalDate.now().toEpochDay()
 
@@ -20,5 +20,5 @@ object DateUtils {
     fun formatMillis(millis: Long): String = Instant.ofEpochMilli(millis)
         .atZone(ZoneId.systemDefault())
         .toLocalDateTime()
-        .format(DateTimeFormatter.ofPattern("dd MMM, HH:mm", Locale("ru")))
+        .format(DateTimeFormatter.ofPattern("dd MMM, HH:mm", Locale("eng")))
 }
